@@ -26,7 +26,7 @@ async function pollCLAndCallEL() {
 
     const jsonrpcNewPayloadPromises = [];
 
-    for (const endpointConfig of config.jsonrpcEndpoints) {
+    for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
         console.log('calling forkChoiceUpdated for: ', endpoint);
@@ -74,7 +74,7 @@ async function pollCLAndCallEL() {
     const jsonrpcForkChoicePromises = [];
 
 
-    for (const endpointConfig of config.jsonrpcEndpoints) {
+    for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
         console.log('calling forkChoiceUpdated for: ', endpoint);
