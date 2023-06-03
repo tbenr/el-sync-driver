@@ -42,3 +42,6 @@ Start by running:
 ```bash
 npm start
 ```
+
+### output while driving
+<img width="624" alt="image" src="https://github.com/tbenr/el-sync-driver/assets/15999009/5bf5d25c-561a-4595-82e6-3506508d8126">
