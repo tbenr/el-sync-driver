@@ -1,7 +1,7 @@
 // Dependencies
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const { executeForkchoiceUpdated } = require('./jsonrpc');
+const { executeForkchoiceUpdated, executeNewPayload } = require('./jsonrpc');
 const config = require('./config.json');
 const fs = require('fs');
 
@@ -10,7 +10,7 @@ let jwtTokens = {};
 async function pollCLAndCallEL() {
     let response;
     try {
-        response = await axios.get(`${config.restApiEndpoint}/eth/v1/debug/fork_choice`);
+        response = await axios.get(`${config.ClRestApiEndpoint}/eth/v2/beacon/blocks/head`);
 
         if (response.status !== 200) {
             console.error('Error in CL REST API call:', response.status);
@@ -20,14 +20,49 @@ async function pollCLAndCallEL() {
         console.error('An error occurred CL REST API call:', error);
     }
 
-    const data = response.data;
-    const justifiedCheckpointRoot = data.justified_checkpoint.root;
-    const finalizedCheckpointRoot = data.finalized_checkpoint.root;
-    const forkChoiceNodes = data.fork_choice_nodes;
+    const beaconBlockHead = response.data;
+
+    const newPayload = calculateNewPayload(beaconBlockHead);
+
+    const jsonrpcNewPayloadPromises = [];
+
+    for (const endpointConfig of config.jsonrpcEndpoints) {
+        const { endpoint } = endpointConfig;
+
+        console.log('calling forkChoiceUpdated for: ', endpoint);
+
+        const jsonrpcPromise = executeNewPayload(endpoint, newPayload, jwtTokens[endpoint]);
+        jsonrpcNewPayloadPromises.push(jsonrpcPromise);
+    }
+
+    try {
+        await Promise.all(jsonrpcNewPayloadPromises);
+
+        console.log('newPayload sent to all ELs.');
+    } catch (error) {
+        console.error('An error occurred during EL forkchoice update call:', error);
+    }
+
+    try {
+        response = await axios.get(`${config.ClRestApiEndpoint}/eth/v1/debug/fork_choice`);
+
+        if (response.status !== 200) {
+            console.error('Error in CL REST API call:', response.status);
+            return;
+        }
+    } catch (error) {
+        console.error('An error occurred CL REST API call:', error);
+    }
+
+    const fork_choice = response.data;
+
+    const justifiedCheckpointRoot = fork_choice.justified_checkpoint.root;
+    const finalizedCheckpointRoot = fork_choice.finalized_checkpoint.root;
+    const forkChoiceNodes = fork_choice.fork_choice_nodes;
 
     const safeBlockHash = calculateSafeBlockHash(justifiedCheckpointRoot, forkChoiceNodes);
     const finalizedBlockHash = calculateFinalizedBlockHash(finalizedCheckpointRoot, forkChoiceNodes);
-    const headBlockHash = getHeadBlockHash(forkChoiceNodes);
+    const headBlockHash = newPayload.blockHash
 
     console.log('forkChoice state:', {
         headBlockHash: headBlockHash,
@@ -36,7 +71,7 @@ async function pollCLAndCallEL() {
     });
 
 
-    const jsonrpcPromises = [];
+    const jsonrpcForkChoicePromises = [];
 
 
     for (const endpointConfig of config.jsonrpcEndpoints) {
@@ -49,18 +84,60 @@ async function pollCLAndCallEL() {
             safeBlockHash,
             finalizedBlockHash,
         }, jwtTokens[endpoint]);
-        jsonrpcPromises.push(jsonrpcPromise);
+        jsonrpcForkChoicePromises.push(jsonrpcPromise);
     }
 
     try {
-        await Promise.all(jsonrpcPromises);
+        await Promise.all(jsonrpcForkChoicePromises);
 
-        console.log('All ELs updated.');
+        console.log('forkchoice updated sent to all ELs.');
     } catch (error) {
         console.error('An error occurred during EL forkchoice update call:', error);
     }
 }
 
+function calculateNewPayload(beaconBlockHead) {
+    const execution_payload = beaconBlockHead.data.message.body.execution_payload;
+
+    return {
+        parentHash: execution_payload.parent_hash,
+        feeRecipient: execution_payload.fee_recipient,
+        stateRoot: execution_payload.state_root,
+        receiptsRoot: execution_payload.receipts_root,
+        logsBloom: execution_payload.logs_bloom,
+        prevRandao: execution_payload.prev_randao,
+        blockNumber: toQuantity(execution_payload.block_number),
+        gasLimit: toQuantity(execution_payload.gas_limit),
+        gasUsed: toQuantity(execution_payload.gas_used),
+        timestamp: toQuantity(execution_payload.timestamp),
+        extraData: execution_payload.extra_data,
+        baseFeePerGas: toQuantity(execution_payload.base_fee_per_gas),
+        blockHash: execution_payload.block_hash,
+        transactions: execution_payload.transactions,
+        withdrawals: calculateWithdrawals(execution_payload.withdrawals)
+    }
+}
+
+function calculateWithdrawals(beaconBlockithdrawals) {
+    let withdrawals = [];
+
+    for (const withdrawal of beaconBlockithdrawals) {
+        withdrawals.push(
+            {
+                index: toQuantity(withdrawal.index),
+                validatorIndex: toQuantity(withdrawal.validator_index),
+                address: withdrawal.address,
+                amount: toQuantity(withdrawal.amount)
+            }
+        );
+    }
+
+    return withdrawals;
+}
+
+function toQuantity(value) {
+    return '0x' + BigInt(value).toString(16);
+}
 
 // Helper function to calculate the safeBlockHash
 function calculateSafeBlockHash(justifiedCheckpointRoot, forkChoiceNodes) {
@@ -84,54 +161,39 @@ function calculateFinalizedBlockHash(finalizedCheckpointRoot, forkChoiceNodes) {
     return null;
 }
 
-// Helper function to get the headBlockHash
-function getHeadBlockHash(forkChoiceNodes) {
-    let headBlockNode = null;
-
-    for (const node of forkChoiceNodes) {
-        if (node.validity === 'VALID' && (!headBlockNode || node.slot > headBlockNode.slot)) {
-            headBlockNode = node;
-        }
-    }
-
-    if (headBlockNode) {
-        return headBlockNode.execution_block_hash;
-    }
-
-    return null;
-}
-
 // Read the secret from file and return it as a buffer
 function readSecretFromFile(filePath) {
     const secretHex = fs.readFileSync(filePath, 'utf-8').trim();
     const secretBuffer = Buffer.from(secretHex, 'hex');
     return secretBuffer;
-  }
+}
 
 function generateAndRenewJwtToken(endpoint, secretBuffer) {
     const issuedAt = Math.floor(Date.now() / 1000);
     const expirationTime = issuedAt + (5 * 60);
-    const renewalInterval = 4 * 60;
+
 
     jwtTokens[endpoint] = jwt.sign({ iat: issuedAt }, secretBuffer, {
         algorithm: 'HS256',
         expiresIn: expirationTime
     });
-
-    setInterval(() => {
-        generateAndRenewJwtToken(secret, secretBuffer);
-        console.log('Renewed JWT token for ', endpoint);
-    }, renewalInterval * 1000);
 }
 
 
 async function main() {
-    for (const endpointConfig of config.jsonrpcEndpoints) {
+    const renewalInterval = 1 * 60;
+
+    for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint, jwtSecretFile } = endpointConfig;
 
         const secretBuffer = readSecretFromFile(jwtSecretFile)
 
         generateAndRenewJwtToken(endpoint, secretBuffer);
+
+        setInterval(() => {
+            generateAndRenewJwtToken(endpoint, secretBuffer);
+            console.log('Renewed JWT token for ', endpoint);
+        }, renewalInterval * 1000);
     }
 
     pollCLAndCallEL();
