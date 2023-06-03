@@ -1,0 +1,14 @@
+{
+  "name": "el-sync-driver",
+  "version": "1.0.0",
+  "description": "Node.js project for polling a REST API and making JSON-RPC calls",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "jsonrpc-lite": "^2.2.0",
+    "jsonwebtoken": "^9.0.0"
+  }
+}

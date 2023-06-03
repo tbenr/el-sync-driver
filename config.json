@@ -1,0 +1,13 @@
+{
+  "restApiEndpoint": "http://localhost:5051",
+  "jsonrpcEndpoints": [
+    {
+      "endpoint": "http://jsonrpc1.example.com",
+      "jwtSecretFile": "secret.txt"
+    },
+    {
+      "endpoint": "http://jsonrpc2.example.com",
+      "jwtSecretFile": "secret2.txt"
+    }
+  ]
+}
