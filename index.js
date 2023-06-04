@@ -24,12 +24,14 @@ async function pollCLAndCallEL() {
 
     const newPayload = calculateNewPayload(beaconBlockHead);
 
+    console.log(`newPayload ${newPayload.blockNumber} ${newPayload.blockHash}`);
+
     const jsonrpcNewPayloadPromises = [];
 
     for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
-        console.log('calling forkChoiceUpdated for: ', endpoint);
+        console.log('calling newPayload for: ', endpoint);
 
         const jsonrpcPromise = executeNewPayload(endpoint, newPayload, jwtTokens[endpoint]);
         jsonrpcNewPayloadPromises.push(jsonrpcPromise);
