@@ -1,6 +1,6 @@
 # EL Sync Driver
 
-This tool is able to drive multiple execution layers to sync emulating a Consensus Client client by using an existing CL as sourche of truth.
+This tool is able to drive multiple Execution Layer Clients sync process. It emulates a Consensus Layer Client for each EL by using an existing CL as source of truth.
 
 The tool is designed to minimize the changes on the existing CL client. It only requires to consume standard BeaconNode rest API, thus no changes in CL configuration are required (not even client restart) as long as rest APIs are already enabled.
 
