@@ -17,7 +17,8 @@ async function pollCLAndCallEL() {
             return;
         }
     } catch (error) {
-        console.error('An error occurred CL REST API call:', error);
+        console.error('An error occurred CL REST API call:', error.cause);
+        return;
     }
 
     const beaconBlockHead = response.data;
@@ -34,19 +35,11 @@ async function pollCLAndCallEL() {
     for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
-        console.log('calling newPayload for: ', endpoint);
-
         const jsonrpcPromise = executeNewPayload(endpoint, newPayload, jwtTokens[endpoint]);
         jsonrpcNewPayloadPromises.push(jsonrpcPromise);
     }
 
-    try {
-        await Promise.all(jsonrpcNewPayloadPromises);
-
-        console.log('newPayload sent to all ELs.');
-    } catch (error) {
-        console.error('An error occurred during EL forkchoice update call:', error);
-    }
+    await Promise.allSettled(jsonrpcNewPayloadPromises);
 
     try {
         response = await axios.get(`${config.ClRestApiEndpoint}/eth/v1/debug/fork_choice`);
@@ -82,8 +75,6 @@ async function pollCLAndCallEL() {
     for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
-        console.log('calling forkChoiceUpdated for: ', endpoint);
-
         const jsonrpcPromise = executeForkchoiceUpdated(endpoint, {
             headBlockHash,
             safeBlockHash,
@@ -92,13 +83,7 @@ async function pollCLAndCallEL() {
         jsonrpcForkChoicePromises.push(jsonrpcPromise);
     }
 
-    try {
-        await Promise.all(jsonrpcForkChoicePromises);
-
-        console.log('forkchoice updated sent to all ELs.');
-    } catch (error) {
-        console.error('An error occurred during EL forkchoice update call:', error);
-    }
+    await Promise.allSettled(jsonrpcForkChoicePromises);
 }
 
 function calculateNewPayload(execution_payload) {

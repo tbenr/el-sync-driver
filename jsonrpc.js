@@ -5,42 +5,18 @@ const jsonrpc = require('jsonrpc-lite');
 let requestIdCounter = 0;
 
 async function executeForkchoiceUpdated(endpoint, params, jwtToken) {
-    try {
-        requestIdCounter++;
-
-        const request = jsonrpc.request(requestIdCounter, 'engine_forkchoiceUpdatedV2', [
-            params
-        ]);
-
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${jwtToken}`
-        };
-
-        const response = await axios.post(endpoint, request, { headers });
-
-        if (response.status !== 200) {
-            console.error('Error in JSON-RPC call:', response.status);
-            return;
-        }
-
-        const { result, error } = response.data;
-
-        if (error) {
-            console.error('JSON-RPC error:', error);
-        } else {
-            console.log('JSON-RPC result:', result);
-        }
-    } catch (error) {
-        console.error('An error occurred during JSON-RPC call:', error);
-    }
+    await doJsonrpcCall(endpoint, params, jwtToken, 'engine_forkchoiceUpdatedV2')
 }
 
 async function executeNewPayload(endpoint, params, jwtToken) {
+    await doJsonrpcCall(endpoint, params, jwtToken, 'engine_newPayloadV2')
+}
+
+async function doJsonrpcCall(endpoint, params, jwtToken, method) {
     try {
         requestIdCounter++;
 
-        const request = jsonrpc.request(requestIdCounter, 'engine_newPayloadV2', [
+        const request = jsonrpc.request(requestIdCounter, method, [
             params
         ]);
 
@@ -48,6 +24,8 @@ async function executeNewPayload(endpoint, params, jwtToken) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${jwtToken}`
         };
+
+        console.error(`[${endpoint}] calling ${method}`);
 
         const response = await axios.post(endpoint, request, { headers });
 
@@ -59,12 +37,12 @@ async function executeNewPayload(endpoint, params, jwtToken) {
         const { result, error } = response.data;
 
         if (error) {
-            console.error('JSON-RPC error:', error);
+            console.error(`[${endpoint}] ${method} error:`, error);
         } else {
-            console.log('JSON-RPC result:', result);
+            console.log(`[${endpoint}] ${method}  result:`, result);
         }
     } catch (error) {
-        console.error('An error occurred during JSON-RPC call:', error);
+        console.error(`[${endpoint}] an error occurred during ${method} call:`, error.cause);
     }
 }
 
