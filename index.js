@@ -21,10 +21,13 @@ async function pollCLAndCallEL() {
     }
 
     const beaconBlockHead = response.data;
+    const execution_payload = beaconBlockHead.data.message.body.execution_payload;
 
-    const newPayload = calculateNewPayload(beaconBlockHead);
+    const newPayload = calculateNewPayload(execution_payload);
 
-    console.log(`newPayload ${newPayload.blockNumber} ${newPayload.blockHash}`);
+    const slot = beaconBlockHead.data.message.slot;
+
+    console.log(`newPayload for slot ${slot}, block number: ${execution_payload.block_number}, block hash ${execution_payload.block_hash}`);
 
     const jsonrpcNewPayloadPromises = [];
 
@@ -98,9 +101,7 @@ async function pollCLAndCallEL() {
     }
 }
 
-function calculateNewPayload(beaconBlockHead) {
-    const execution_payload = beaconBlockHead.data.message.body.execution_payload;
-
+function calculateNewPayload(execution_payload) {
     return {
         parentHash: execution_payload.parent_hash,
         feeRecipient: execution_payload.fee_recipient,
