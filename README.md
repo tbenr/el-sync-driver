@@ -44,7 +44,7 @@ npm start
 ```
 
 ### output while driving
-<img width="624" alt="image" src="https://github.com/tbenr/el-sync-driver/assets/15999009/5bf5d25c-561a-4595-82e6-3506508d8126">
+<img width="641" alt="image" src="https://github.com/tbenr/el-sync-driver/assets/15999009/9bba7fb9-499e-45b0-a7f1-b9e0d112d8c7">
 
 ## Disclaimer
 
