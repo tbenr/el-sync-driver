@@ -6,9 +6,11 @@ The tool is designed to minimize the changes on the existing CL client. It only 
 
 ```mermaid
 graph LR
-    B(EL-sync-driver) <-- block/head<br />fork_choice --> C[CL REST API]
+    B(EL-sync-driver) -- block/head<br />fork_choice --> C[CL - REST API]
     C -- beacon block head<br />finalized\justified data--> B
-    B -- engine_newPayloadV2<br />engine_forkChoiceUpdatedV2 --> D[EL engine API]
+    B -- engine_newPayloadV2<br />engine_forkChoiceUpdatedV2 --> D[EL1 - engine API]
+    B --> E[EL2 - engine API]
+    B --> F[ELn - engine API]
 ```
 
 ## Installation
