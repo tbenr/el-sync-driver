@@ -1,7 +1,7 @@
 {
   "name": "el-sync-driver",
   "version": "1.0.0",
-  "description": "Node.js project for polling a REST API and making JSON-RPC calls",
+  "description": "Drives multiple Ethereum's Execution Layer Clients sync process",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
