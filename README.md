@@ -24,7 +24,7 @@ npm install
 ```
 ## Configuration
 
-Specify a Consensus Layer rest API endpoint and the list of Execution Layers engine api endpoint and secret file
+Edit `config.json` and specify a Consensus Layer rest API endpoint and the list of Execution Layers engine api endpoint and secret file
 
 ```json
 {
