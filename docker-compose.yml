@@ -1,0 +1,11 @@
+version: '3'
+services:
+  el-sync-driver:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # config
+      - ./config.json:/usr/src/app/config.json
+      # jwt secrets
+      - /path/to/secret:/path/to/secret

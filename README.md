@@ -38,11 +38,19 @@ Edit `config.json` and specify a Consensus Layer rest API endpoint and the list 
 }
 ```
 
+If you want to use docker, edit `docker-compose.yml` to mount secret file(s) in the container.
+
 ## Usage
 Start by running:
 
 ```bash
 npm start
+```
+
+or by using docker-compose:
+
+```bash
+docker-compose up
 ```
 
 ### output while driving
