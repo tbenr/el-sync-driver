@@ -22,6 +22,9 @@ git clone https://github.com/tbenr/el-sync-driver.git
 cd el-sync-driver
 npm install
 ```
+
+`npm install` is not needed if you plan to use docker.
+
 ## Configuration
 
 Edit `config.json` and specify a Consensus Layer rest API endpoint and the list of Execution Layers engine api endpoint and secret file
