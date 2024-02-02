@@ -11,7 +11,7 @@ function calculateSHA256FromHex(hexData) {
 function kzgCommitmentToVersionedHash(kzgCommitment) {
     const kzgCommitmentHash = calculateSHA256FromHex(kzgCommitment);
 
-    return str = '0x01' + kzgCommitmentHash.substring(2);
+    return '0x01' + kzgCommitmentHash.substring(2);
 }
 
 function toQuantity(value) {
