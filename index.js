@@ -1,11 +1,14 @@
 // Dependencies
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const { executeForkchoiceUpdated, executeNewPayload } = require('./jsonrpc');
+const { doJsonrpcCall } = require('./jsonrpc');
+const { prepareNewPayloadCall, prepareForkchoiceUpdatedCall } = require('./engineApi');
 const config = require('./config.json');
 const fs = require('fs');
 
 let jwtTokens = {};
+
+const supportedForks = ['capella', 'deneb']
 
 async function pollCLAndCallEL() {
     let response;
@@ -21,12 +24,20 @@ async function pollCLAndCallEL() {
         return;
     }
 
-    const beaconBlockHead = response.data;
-    const execution_payload = beaconBlockHead.data.message.body.execution_payload;
+    const beaconBlockHeadResponse = response.data;
+    const fork = ('' + beaconBlockHeadResponse.version).toLocaleLowerCase();
 
-    const newPayload = calculateNewPayload(execution_payload);
+    if (!supportedForks.includes(fork)) {
+        console.error(fork + 'is unsupported');
+        return;
+    }
 
-    const slot = beaconBlockHead.data.message.slot;
+    const beacon_block = beaconBlockHeadResponse.data.message;
+    const execution_payload = beacon_block.body.execution_payload;
+
+    const newPayloadCall = prepareNewPayloadCall(beacon_block, fork)
+
+    const slot = beaconBlockHeadResponse.data.message.slot;
 
     console.log(`newPayload for slot ${slot}, block number: ${execution_payload.block_number}, block hash ${execution_payload.block_hash}`);
 
@@ -35,7 +46,7 @@ async function pollCLAndCallEL() {
     for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
-        const jsonrpcPromise = executeNewPayload(endpoint, newPayload, jwtTokens[endpoint]);
+        const jsonrpcPromise = doJsonrpcCall(endpoint, newPayloadCall, jwtTokens[endpoint]);
         jsonrpcNewPayloadPromises.push(jsonrpcPromise);
     }
 
@@ -53,21 +64,9 @@ async function pollCLAndCallEL() {
     }
 
     const fork_choice = response.data;
+    const headBlockHash = beacon_block.body.execution_payload.block_hash
 
-    const justifiedCheckpointRoot = fork_choice.justified_checkpoint.root;
-    const finalizedCheckpointRoot = fork_choice.finalized_checkpoint.root;
-    const forkChoiceNodes = fork_choice.fork_choice_nodes;
-
-    const safeBlockHash = calculateSafeBlockHash(justifiedCheckpointRoot, forkChoiceNodes);
-    const finalizedBlockHash = calculateFinalizedBlockHash(finalizedCheckpointRoot, forkChoiceNodes);
-    const headBlockHash = newPayload.blockHash
-
-    console.log('forkChoice state:', {
-        headBlockHash: headBlockHash,
-        safeBlockHash: safeBlockHash,
-        finalizedBlockHash: finalizedBlockHash
-    });
-
+    const forkhoiceUpdatedCall = prepareForkchoiceUpdatedCall(fork_choice, headBlockHash, fork)
 
     const jsonrpcForkChoicePromises = [];
 
@@ -75,78 +74,11 @@ async function pollCLAndCallEL() {
     for (const endpointConfig of config.ElJsonrpcEndpoints) {
         const { endpoint } = endpointConfig;
 
-        const jsonrpcPromise = executeForkchoiceUpdated(endpoint, {
-            headBlockHash,
-            safeBlockHash,
-            finalizedBlockHash,
-        }, jwtTokens[endpoint]);
+        const jsonrpcPromise = doJsonrpcCall(endpoint, forkhoiceUpdatedCall, jwtTokens[endpoint]);
         jsonrpcForkChoicePromises.push(jsonrpcPromise);
     }
 
     await Promise.allSettled(jsonrpcForkChoicePromises);
-}
-
-function calculateNewPayload(execution_payload) {
-    return {
-        parentHash: execution_payload.parent_hash,
-        feeRecipient: execution_payload.fee_recipient,
-        stateRoot: execution_payload.state_root,
-        receiptsRoot: execution_payload.receipts_root,
-        logsBloom: execution_payload.logs_bloom,
-        prevRandao: execution_payload.prev_randao,
-        blockNumber: toQuantity(execution_payload.block_number),
-        gasLimit: toQuantity(execution_payload.gas_limit),
-        gasUsed: toQuantity(execution_payload.gas_used),
-        timestamp: toQuantity(execution_payload.timestamp),
-        extraData: execution_payload.extra_data,
-        baseFeePerGas: toQuantity(execution_payload.base_fee_per_gas),
-        blockHash: execution_payload.block_hash,
-        transactions: execution_payload.transactions,
-        withdrawals: calculateWithdrawals(execution_payload.withdrawals)
-    }
-}
-
-function calculateWithdrawals(beaconBlockithdrawals) {
-    let withdrawals = [];
-
-    for (const withdrawal of beaconBlockithdrawals) {
-        withdrawals.push(
-            {
-                index: toQuantity(withdrawal.index),
-                validatorIndex: toQuantity(withdrawal.validator_index),
-                address: withdrawal.address,
-                amount: toQuantity(withdrawal.amount)
-            }
-        );
-    }
-
-    return withdrawals;
-}
-
-function toQuantity(value) {
-    return '0x' + BigInt(value).toString(16);
-}
-
-// Helper function to calculate the safeBlockHash
-function calculateSafeBlockHash(justifiedCheckpointRoot, forkChoiceNodes) {
-    const safeBlockNode = forkChoiceNodes.find(node => node.block_root === justifiedCheckpointRoot);
-
-    if (safeBlockNode) {
-        return safeBlockNode.execution_block_hash;
-    }
-
-    return null;
-}
-
-// Helper function to calculate the finalizedBlockHash
-function calculateFinalizedBlockHash(finalizedCheckpointRoot, forkChoiceNodes) {
-    const finalizedBlockNode = forkChoiceNodes.find(node => node.block_root === finalizedCheckpointRoot);
-
-    if (finalizedBlockNode) {
-        return finalizedBlockNode.execution_block_hash;
-    }
-
-    return null;
 }
 
 // Read the secret from file and return it as a buffer
