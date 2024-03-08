@@ -66,8 +66,8 @@ function prepareForkchoiceUpdatedCall(fork_choice, headBlockHash, fork) {
     const finalizedCheckpointRoot = fork_choice.finalized_checkpoint.root;
     const forkChoiceNodes = fork_choice.fork_choice_nodes;
 
-    const safeBlockHash = calculateSafeBlockHash(justifiedCheckpointRoot, forkChoiceNodes);
-    const finalizedBlockHash = calculateFinalizedBlockHash(finalizedCheckpointRoot, forkChoiceNodes);
+    const safeBlockHash = executionBlockHashLookup(justifiedCheckpointRoot, forkChoiceNodes);
+    const finalizedBlockHash = executionBlockHashLookup(finalizedCheckpointRoot, forkChoiceNodes);
 
     switch (fork) {
         case 'capella':
@@ -95,23 +95,11 @@ function prepareForkchoiceUpdatedCall(fork_choice, headBlockHash, fork) {
     }
 }
 
-// Helper function to calculate the safeBlockHash
-function calculateSafeBlockHash(justifiedCheckpointRoot, forkChoiceNodes) {
-    const safeBlockNode = forkChoiceNodes.find(node => node.block_root === justifiedCheckpointRoot);
+function executionBlockHashLookup(beaconBlockRoot, forkChoiceNodes) {
+    const node = forkChoiceNodes.find(node => node.block_root === beaconBlockRoot);
 
-    if (safeBlockNode) {
-        return safeBlockNode.execution_block_hash;
-    }
-
-    return null;
-}
-
-// Helper function to calculate the finalizedBlockHash
-function calculateFinalizedBlockHash(finalizedCheckpointRoot, forkChoiceNodes) {
-    const finalizedBlockNode = forkChoiceNodes.find(node => node.block_root === finalizedCheckpointRoot);
-
-    if (finalizedBlockNode) {
-        return finalizedBlockNode.execution_block_hash;
+    if (node) {
+        return node.execution_block_hash;
     }
 
     return null;

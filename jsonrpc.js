@@ -15,7 +15,7 @@ async function doJsonrpcCall(endpoint, engineCall, jwtToken) {
             'Authorization': `Bearer ${jwtToken}`
         };
 
-        console.error(`[${endpoint}] calling ${engineCall.method}`);
+        console.log(`[${endpoint}] calling ${engineCall.method}`);
 
         const response = await axios.post(endpoint, request, { headers });
 
