@@ -1,14 +1,13 @@
 {
   "name": "el-sync-driver",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Drives multiple Ethereum's Execution Layer Clients sync process",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
+  "engines": {
+    "node": ">=20"
   },
-  "dependencies": {
-    "axios": "^1.4.0",
-    "jsonrpc-lite": "^2.2.0",
-    "jsonwebtoken": "^9.0.0"
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test tests/"
   }
 }
