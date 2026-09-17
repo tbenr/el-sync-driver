@@ -1,43 +1,41 @@
-// Dependencies
-const axios = require('axios');
-const jsonrpc = require('jsonrpc-lite');
-
 let requestIdCounter = 0;
 
-async function doJsonrpcCall(endpoint, engineCall, jwtToken) {
+/**
+ * Performs a single JSON-RPC 2.0 call. Never throws; returns
+ *   { ok: true,  result, ms }  or
+ *   { ok: false, error: { code?, message }, ms }
+ */
+async function doJsonrpcCall(endpoint, engineCall, jwtToken, { timeoutMs = 30_000 } = {}) {
+    const id = ++requestIdCounter;
+    const started = performance.now();
+    const elapsed = () => Math.round(performance.now() - started);
+
+    const body = JSON.stringify({ jsonrpc: '2.0', id, method: engineCall.method, params: engineCall.params });
+
     try {
-        requestIdCounter++;
-
-        const request = jsonrpc.request(requestIdCounter, engineCall.method, engineCall.params);
-
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${jwtToken}`
-        };
-
-        console.log(`[${endpoint}] calling ${engineCall.method}`);
-
-        const response = await axios.post(endpoint, request, { headers });
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwtToken}` },
+            body,
+            signal: AbortSignal.timeout(timeoutMs),
+        });
 
         if (response.status !== 200) {
-            console.error('Error in JSON-RPC call:', response.status);
-            return;
+            const text = (await response.text()).replace(/\s+/g, ' ').trim().slice(0, 200);
+            return { ok: false, error: { message: `HTTP ${response.status} ${response.statusText} ${text}`.replace(/\s+/g, ' ').trim() }, ms: elapsed() };
         }
 
-        const { result, error } = response.data;
-
+        const { result, error } = await response.json();
         if (error) {
-            console.error(`[${endpoint}] ${engineCall.method} error:`, error);
-        } else {
-            console.log(`[${endpoint}] ${engineCall.method}  result:`, result);
+            return { ok: false, error, ms: elapsed() };
         }
-    } catch (error) {
-        console.error(`[${endpoint}] an error occurred during ${engineCall.method} call:`, error.cause);
+        return { ok: true, result, ms: elapsed() };
+    } catch (err) {
+        const message = err.name === 'TimeoutError'
+            ? `timed out after ${timeoutMs}ms`
+            : (err.cause && err.cause.message) || err.message;
+        return { ok: false, error: { message }, ms: elapsed() };
     }
 }
 
-// Rest of the code remains the same
-
-module.exports = {
-    doJsonrpcCall
-};
+module.exports = { doJsonrpcCall };

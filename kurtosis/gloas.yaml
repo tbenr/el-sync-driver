@@ -1,0 +1,18 @@
+# Gloas (ePBS) devnet. Genesis at fulu, gloas activates at epoch 1 (run.sh waits for a gloas head).
+# ethereum-package does not auto-select gloas-capable images, so they are pinned explicitly to the
+# glamsterdam-devnet-8 tags (Teku has no devnet-8 tag; master tracks the same spec).
+# Participant 1's CL is Teku because it implements /eth/v1/beacon/execution_payload_envelopes/{block_id}.
+participants:
+  - el_type: geth
+    el_image: ethpandaops/geth:glamsterdam-devnet-8
+    cl_type: teku
+    cl_image: ethpandaops/teku:master
+  - el_type: nethermind
+    el_image: ethpandaops/nethermind:glamsterdam-devnet-8
+    cl_type: lighthouse
+    cl_image: ethpandaops/lighthouse:glamsterdam-devnet-8
+network_params:
+  seconds_per_slot: 12
+  fulu_fork_epoch: 0
+  gloas_fork_epoch: 1
+additional_services: []

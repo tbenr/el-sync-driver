@@ -1,17 +1,11 @@
-# Specify the base image
-FROM node:18
+FROM node:22-alpine
 
-# Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json into the working directory
-COPY package*.json ./
+# No runtime dependencies: only Node built-ins are used.
+COPY package.json ./
+COPY *.js ./
 
-# Install app dependencies
-RUN npm install
+ENV LOG_LEVEL=info
 
-# Copy the rest of the application code into the working directory
-COPY *.js .
-
-# Define the command to run the app
 CMD [ "node", "index.js" ]

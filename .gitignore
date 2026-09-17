@@ -13,3 +13,6 @@
 
 # Built Visual Studio Code Extensions
 *.vsix
+# kurtosis e2e run artifacts
+kurtosis/.jwt/
+kurtosis/config.*.json

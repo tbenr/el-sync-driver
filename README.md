@@ -6,24 +6,37 @@ The tool is designed to minimize the changes on the existing CL client. It only 
 
 ```mermaid
 graph LR
-    B(EL-sync-driver) -- block/head<br />fork_choice --> C[CL - REST API]
+    B(EL-sync-driver) -- block/head<br />fork_choice<br />execution_payload_envelopes --> C[CL - REST API]
     C -- beacon block head<br />finalized\justified data--> B
     B -- engine_newPayload<br />engine_forkChoiceUpdated --> D[EL1 - engine API]
     B --> E[EL2 - engine API]
     B --> F[ELn - engine API]
 ```
 
-## Installation
+## Supported forks
 
-Clone the repository and install the dependencies:
+| Fork | Engine API calls |
+|---|---|
+| capella | `engine_newPayloadV2`, `engine_forkchoiceUpdatedV2` |
+| deneb | `engine_newPayloadV3`, `engine_forkchoiceUpdatedV3` |
+| electra | `engine_newPayloadV4`, `engine_forkchoiceUpdatedV3` |
+| fulu | `engine_newPayloadV4`, `engine_forkchoiceUpdatedV3` |
+| gloas | `engine_newPayloadV5`, `engine_forkchoiceUpdatedV4` |
+
+On gloas (ePBS) the execution payload is not part of the beacon block: it is fetched from
+`/eth/v1/beacon/execution_payload_envelopes/{block_root}`. If the head payload has not been
+revealed yet, the driver falls back to the parent block's payload for that round.
+
+## Requirements
+
+Node.js 20 or newer. There are no runtime dependencies.
+
+## Installation
 
 ```bash
 git clone https://github.com/tbenr/el-sync-driver.git
 cd el-sync-driver
-npm install
 ```
-
-`npm install` is not needed if you plan to use docker.
 
 ## Configuration
 
@@ -41,6 +54,13 @@ Edit `config.json` and specify a Consensus Layer rest API endpoint and the list 
 }
 ```
 
+Environment variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `CONFIG` | `config.json` | path of the configuration file |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. `debug` logs full engine API params and results |
+
 If you want to use docker, edit `docker-compose.yml` to mount secret file(s) in the container.
 
 ## Usage
@@ -56,8 +76,33 @@ or by using docker-compose:
 docker-compose up
 ```
 
-### output while driving
-<img width="641" alt="image" src="https://github.com/tbenr/el-sync-driver/assets/15999009/9bba7fb9-499e-45b0-a7f1-b9e0d112d8c7">
+### Output while driving
+
+One line per new head, with the `newPayload` (NP) and `forkchoiceUpdated` (FCU) status returned by each EL:
+
+```
+2026-09-11T15:40:12.001Z INFO  [driver] slot 1234 (fulu) block #1201 0x8f1c2a…9e01 | 127.0.0.1:8551: NP=SYNCING(38ms) FCU=SYNCING(4ms) | 127.0.0.1:8561: NP=VALID(21ms) FCU=VALID(3ms)
+```
+
+## Testing
+
+Unit tests use the built-in Node test runner:
+
+```bash
+npm test
+```
+
+End-to-end runs against real clients use [Kurtosis](https://docs.kurtosis.com/) and
+[ethereum-package](https://github.com/ethpandaops/ethereum-package). The script starts a
+two-participant devnet, stops participant 2's CL so that its EL lags behind, and writes a
+config pointing the driver at participant 1's CL and participant 2's EL:
+
+```bash
+kurtosis/run.sh fulu          # or: kurtosis/run.sh gloas
+LOG_LEVEL=debug CONFIG=kurtosis/config.fulu.json npm start
+kurtosis/run.sh fulu status   # compare head vs. the driven EL block number
+kurtosis/run.sh fulu down
+```
 
 ## Disclaimer
 
@@ -74,4 +119,3 @@ Contributions to this project are welcome, but please understand that there may 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-

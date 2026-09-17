@@ -1,0 +1,11 @@
+# Fulu devnet (electra + fulu active from genesis, package defaults).
+# Participant 1 is the "source of truth" CL/EL pair; participant 2's EL is the one we drive
+# after stopping its CL (see run.sh).
+participants:
+  - el_type: geth
+    cl_type: teku
+  - el_type: nethermind
+    cl_type: lighthouse
+network_params:
+  seconds_per_slot: 12
+additional_services: []
